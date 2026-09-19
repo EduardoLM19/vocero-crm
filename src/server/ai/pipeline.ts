@@ -15,6 +15,7 @@ import {
   type AgentActionType,
 } from "@/server/ai/actions";
 import { matchesHandoffIntent } from "@/server/ai/handoff";
+import { notifyHandoff } from "@/server/notify/handoff-webhook";
 import { buildAgentSystemPrompt } from "@/server/ai/prompts";
 import { agendaEnabled } from "@/server/agenda/flag";
 import { bookSlot, offerSlots } from "@/server/agenda/agent";
@@ -349,6 +350,9 @@ export async function applyHandoff(
       conversation: { id: conversationId, handoffReason: reason },
     },
   });
+  // Ultimo, y a prueba de fallos: el handoff ya esta escrito y publicado, asi
+  // que un webhook caido no puede deshacerlo. `notifyHandoff` nunca lanza.
+  await notifyHandoff(updated[0], reason);
 }
 
 async function moveLeadToStage(

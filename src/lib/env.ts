@@ -38,6 +38,14 @@ const envSchema = z.object({
   // conversacion, no se le reporta nada a Meta y la superficie da 404.
   // Ej.: ATRIBUCION=on
   ATRIBUCION: z.string().optional(),
+  // Aviso de escalado: a donde se POSTea cuando una conversacion pasa a manos
+  // humanas. Sin ella no se avisa a nadie y la instancia se comporta igual que
+  // siempre. Solo se notifican los motivos de negocio (`modelo` y `cliente`).
+  // Ej.: HANDOFF_WEBHOOK_URL=https://n8n.example.com/webhook/handoff
+  HANDOFF_WEBHOOK_URL: z.string().url().optional(),
+  // Opcional: si esta, viaja como `Authorization: Bearer` en ese POST. Un
+  // webhook abierto en internet es un buzon que puede llenar cualquiera.
+  HANDOFF_WEBHOOK_TOKEN: z.string().optional(),
   // 015: bases de los conectores. Solo se sobreescriben para apuntar a los
   // mocks en el self-test; en producción se usan las reales.
   ZOOM_BASE_URL: z.string().url().default("https://api.zoom.us/v2"),
