@@ -90,6 +90,20 @@ describe("chatJson (reintentos y errores tipados)", () => {
     if (!result.ok) expect(result.error).toBe("invalid_output");
   });
 
+  it("texto plano + fromText → se aprovecha sin reintentar", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(providerResponse("Perfecto. ¿Cuántos baños necesitas?"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await chatJson(schema, [{ role: "user", content: "hola" }], {
+      fromText: (raw) => ({ action: "reply", text: raw.trim() }),
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.data.text).toBe("Perfecto. ¿Cuántos baños necesitas?");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("sin token → not_configured sin tocar la red", async () => {
     vi.stubEnv("OPENROUTER_API_TOKEN", "");
     const fetchMock = vi.fn();

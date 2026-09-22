@@ -23,7 +23,13 @@ const RETRY_DELAY_MS = 500;
 export async function chatJson<T>(
   schema: z.ZodType<T>,
   messages: ChatMessage[],
-  opts?: { model?: string; judge?: boolean; timeoutMs?: number }
+  opts?: {
+    model?: string;
+    judge?: boolean;
+    timeoutMs?: number;
+    /** Si el modelo contesta en texto plano, cómo convertirlo en la salida esperada (null = no se puede). */
+    fromText?: (raw: string) => unknown;
+  }
 ): Promise<ChatJsonResult<T>> {
   if (!isAiConfigured()) {
     return {
@@ -61,7 +67,7 @@ export async function chatJson<T>(
           ];
     try {
       const raw = await callProvider(model, attemptMessages, opts?.timeoutMs);
-      const extracted = extractJson(raw);
+      const extracted = extractJson(raw) ?? opts?.fromText?.(raw) ?? null;
       if (extracted === null) {
         lastDetail = `sin JSON extraíble (raw=${truncate(raw)})`;
         continue;

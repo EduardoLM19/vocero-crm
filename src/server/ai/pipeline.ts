@@ -48,6 +48,17 @@ function coalesceMap(): Map<string, CoalesceEntry> {
 }
 
 /** Punto de entrada con debounce (mensajes entrantes reales). */
+/**
+ * El modelo a veces contesta al cliente en texto plano en vez de JSON. Ese
+ * texto ES la respuesta: tirarla y escalar por "error" deja al lead colgado.
+ * Si trae llaves es un JSON roto, no un mensaje: mejor reintentar.
+ */
+export function replyFromPlainText(raw: string): { action: "reply"; text: string } | null {
+  const text = raw.trim();
+  if (!text || text.includes("{") || text.length > 1000) return null;
+  return { action: "reply", text };
+}
+
 export function scheduleAgentTurn(conversationId: string): void {
   const map = coalesceMap();
   const entry = map.get(conversationId) ?? {
@@ -183,12 +194,18 @@ export async function runAgentTurn(conversationId: string): Promise<void> {
       role: "system",
       content: buildAgentSystemPrompt({ profile, kb, stages, agenda }),
     },
+    // Los turnos propios van en el MISMO formato JSON que se le exige: con el
+    // historial en texto plano, el modelo acaba imitándolo y la salida se pierde.
     ...history
       .filter((m) => m.text)
-      .map((m) => ({
-        role: m.direction === "in" ? ("user" as const) : ("assistant" as const),
-        content: m.text!,
-      })),
+      .map((m) =>
+        m.direction === "in"
+          ? { role: "user" as const, content: m.text! }
+          : {
+              role: "assistant" as const,
+              content: JSON.stringify({ action: "reply", text: m.text }),
+            }
+      ),
     /**
      * Va AL FINAL, después del historial: es el estado de AHORA, y ponerlo
      * antes lo dejaría enterrado bajo la conversación en cuanto esta crezca.
@@ -198,7 +215,9 @@ export async function runAgentTurn(conversationId: string): Promise<void> {
       : []),
   ];
 
-  const result = await chatJson(agentActionSchema(agenda), messages);
+  const result = await chatJson(agentActionSchema(agenda), messages, {
+    fromText: replyFromPlainText,
+  });
   if (!result.ok) {
     if (result.error === "not_configured") return;
     // Fallo persistente del proveedor o salida imposible → escalar (FR-022).
