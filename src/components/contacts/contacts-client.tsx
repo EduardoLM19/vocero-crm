@@ -9,6 +9,7 @@ import {
   MessageSquareText,
   Search,
   Send,
+  Trash2,
   UserPlus,
 } from "lucide-react";
 import type { ContactDto } from "@/lib/types";
@@ -34,6 +35,7 @@ export function ContactsClient() {
   const [editing, setEditing] = useState<ContactDto | null>(null);
   const [creando, setCreando] = useState(false);
   const [escribiendo, setEscribiendo] = useState<ContactDto | null>(null);
+  const [borrando, setBorrando] = useState<ContactDto | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Mismo rescate que en la Bandeja: lo tecleado antes de que hidrate el JS
@@ -228,6 +230,15 @@ export function ContactsClient() {
                       <Archive className="h-4 w-4" />
                     )}
                   </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Eliminar"
+                    title="Eliminar contacto y sus conversaciones"
+                    onClick={() => setBorrando(c)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
               </li>
             ))}
@@ -276,6 +287,17 @@ export function ContactsClient() {
         </div>
       )}
 
+      {borrando && (
+        <DeleteDialog
+          contact={borrando}
+          onClose={() => setBorrando(null)}
+          onDeleted={() => {
+            setBorrando(null);
+            void refetch();
+          }}
+        />
+      )}
+
       {creando && (
         <NewContactDialog
           onClose={() => setCreando(false)}
@@ -289,6 +311,60 @@ export function ContactsClient() {
           }}
         />
       )}
+    </div>
+  );
+}
+
+function DeleteDialog({
+  contact,
+  onClose,
+  onDeleted,
+}: {
+  contact: ContactDto;
+  onClose: () => void;
+  onDeleted: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function confirmar() {
+    setBusy(true);
+    setError(null);
+    const res = await fetch(`/api/contacts/${contact.id}`, { method: "DELETE" }).catch(
+      () => null
+    );
+    setBusy(false);
+    if (res?.ok) onDeleted();
+    else setError("No se pudo eliminar. Inténtalo de nuevo.");
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-overlay p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Eliminar contacto"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md rounded-lg border bg-card p-5 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 className="mb-2 font-semibold">¿Eliminar a {contact.name}?</h3>
+        <p className="text-sm text-muted-foreground">
+          Se borran el contacto, su lead y todas sus conversaciones y mensajes.
+          No se puede deshacer. En WhatsApp no cambia nada.
+        </p>
+        {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
+        <div className="mt-4 flex justify-end gap-2">
+          <Button variant="ghost" onClick={onClose} disabled={busy}>
+            Cancelar
+          </Button>
+          <Button variant="destructive" onClick={() => void confirmar()} disabled={busy}>
+            {busy ? "Eliminando…" : "Eliminar"}
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

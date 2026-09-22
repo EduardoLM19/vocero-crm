@@ -89,3 +89,24 @@ export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
   if (!updated[0]) return apiError(404, "not_found", "Contacto no encontrado");
   return Response.json({ contact: serializeContact(updated[0]) });
 });
+
+/**
+ * Borra el contacto y, en cascada, su lead, conversaciones y mensajes.
+ * Archivar no basta cuando alguien entró por error: un archivado sigue siendo
+ * "conocido" y el siguiente mensaje lo reactiva (y pasa la puerta de anuncios).
+ */
+export const DELETE = withAuth(async (session, _req: Request, ctx: Params) => {
+  const { id } = await ctx.params;
+  const deleted = await getDb()
+    .delete(schema.contact)
+    .where(
+      scoped(
+        schema.contact.organizationId,
+        session.organizationId,
+        eq(schema.contact.id, id)
+      )
+    )
+    .returning({ id: schema.contact.id });
+  if (!deleted[0]) return apiError(404, "not_found", "Contacto no encontrado");
+  return new Response(null, { status: 204 });
+});
