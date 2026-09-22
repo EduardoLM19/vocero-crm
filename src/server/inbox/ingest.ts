@@ -18,6 +18,7 @@ import {
   type ResolvedIdentity,
 } from "@/server/inbox/identity";
 import { applyStatusUpdate } from "@/server/inbox/status";
+import { dejaPasarEco, dejaPasarEntrante, ultimos4 } from "@/server/inbox/puerta";
 import { atribucionEnabled } from "@/server/attribution/flag";
 import { recordAttribution } from "@/server/attribution/store";
 import { onLeadActivity } from "@/server/inbox/lead-activity";
@@ -244,15 +245,23 @@ export async function processMessagesValue(value: WebhookValue): Promise<void> {
       );
       continue;
     }
+    const referral = msg.referral ?? null;
+    const text = msg.text?.body ?? null;
+    if (!(await dejaPasarEntrante({ organizationId, identity: resolved, referral, text }))) {
+      console.log(
+        `[puerta] ${ultimos4(resolved.identity)} sin señal de anuncio y desconocido: descartado`
+      );
+      continue;
+    }
     await ingestInboundMessage({
       organizationId,
       identity: resolved,
       waMessageId: msg.id,
       type: msg.type,
-      text: msg.text?.body ?? null,
+      text,
       timestamp: msg.timestamp,
       media: mediaInputFrom(msg),
-      referral: msg.referral ?? null,
+      referral,
     });
   }
 }
@@ -298,13 +307,11 @@ async function ingestManualEcho(
 ): Promise<void> {
   const db = getDb();
   const identity = normalizeMx(echo.to!);
+  const resolved = { identity, phone: identity, waUserId: null, profileName: null };
 
-  const { contact } = await getOrCreateContactByIdentity(organizationId, {
-    identity,
-    phone: identity,
-    waUserId: null,
-    profileName: null,
-  });
+  if (!(await dejaPasarEco(organizationId, resolved))) return;
+
+  const { contact } = await getOrCreateContactByIdentity(organizationId, resolved);
   const conversation = await getOrCreateConversation(organizationId, contact.id);
 
   const waTimestamp = toDate(echo.timestamp);

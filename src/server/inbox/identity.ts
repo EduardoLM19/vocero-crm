@@ -152,31 +152,7 @@ export async function getOrCreateContactByIdentity(
     return { contact: contactIg, isNew: false };
   }
 
-  const matchers = [eq(schema.contact.waIdentity, resolved.identity)];
-  if (resolved.waUserId) {
-    matchers.push(eq(schema.contact.waUserId, resolved.waUserId));
-    matchers.push(
-      eq(schema.contact.waIdentity, `${BSUID_PREFIX}${resolved.waUserId}`)
-    );
-  }
-  if (resolved.phone) {
-    matchers.push(eq(schema.contact.phone, resolved.phone));
-  }
-
-  const rows = await db
-    .select()
-    .from(schema.contact)
-    .where(
-      and(
-        eq(schema.contact.organizationId, organizationId),
-        eq(schema.contact.channel, "whatsapp"),
-        or(...matchers)
-      )
-    )
-    .orderBy(schema.contact.createdAt)
-    .limit(1);
-
-  const existing = rows[0];
+  const existing = await findWhatsappContact(organizationId, resolved);
   if (existing) {
     const patch: Partial<typeof schema.contact.$inferInsert> = {};
     if (resolved.waUserId && !existing.waUserId)
@@ -246,6 +222,37 @@ export async function getOrCreateContactByIdentity(
   const contact = raced[0];
   if (!contact) throw new Error("contacto no encontrado tras upsert");
   return { contact, isNew: false };
+}
+
+/** Busca el contacto de WhatsApp por teléfono o BSUID, sin crearlo. */
+export async function findWhatsappContact(
+  organizationId: string,
+  resolved: ResolvedIdentity
+) {
+  const matchers = [eq(schema.contact.waIdentity, resolved.identity)];
+  if (resolved.waUserId) {
+    matchers.push(eq(schema.contact.waUserId, resolved.waUserId));
+    matchers.push(
+      eq(schema.contact.waIdentity, `${BSUID_PREFIX}${resolved.waUserId}`)
+    );
+  }
+  if (resolved.phone) {
+    matchers.push(eq(schema.contact.phone, resolved.phone));
+  }
+
+  const rows = await getDb()
+    .select()
+    .from(schema.contact)
+    .where(
+      and(
+        eq(schema.contact.organizationId, organizationId),
+        eq(schema.contact.channel, "whatsapp"),
+        or(...matchers)
+      )
+    )
+    .orderBy(schema.contact.createdAt)
+    .limit(1);
+  return rows[0] ?? null;
 }
 
 /** Nombre de respaldo cuando no hay nombre de perfil: nunca el BSUID crudo. */

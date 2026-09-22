@@ -38,6 +38,14 @@ const envSchema = z.object({
   // conversacion, no se le reporta nada a Meta y la superficie da 404.
   // Ej.: ATRIBUCION=on
   ATRIBUCION: z.string().optional(),
+  // Puerta de entrada para numeros en coexistencia (familia y amigos en el
+  // mismo WhatsApp). Encendida, un remitente DESCONOCIDO solo entra al CRM si
+  // viene de un anuncio Click-to-WhatsApp o si su mensaje trae PUERTA_MARCADOR
+  // (p. ej. el texto precargado de un enlace wa.me del anuncio). Los contactos
+  // que ya estan en el CRM entran siempre. Ej.: PUERTA_ANUNCIOS=on
+  PUERTA_ANUNCIOS: z.string().optional(),
+  // Ej.: PUERTA_MARCADOR=vi tu anuncio  (sin acentos ni mayusculas: da igual)
+  PUERTA_MARCADOR: z.string().optional(),
   // Aviso de escalado: a donde se POSTea cuando una conversacion pasa a manos
   // humanas. Sin ella no se avisa a nadie y la instancia se comporta igual que
   // siempre. Solo se notifican los motivos de negocio (`modelo` y `cliente`).
