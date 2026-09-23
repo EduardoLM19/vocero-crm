@@ -140,6 +140,9 @@ export async function runAgentTurn(conversationId: string): Promise<void> {
   history.reverse();
   const lastInbound = [...history].reverse().find((m) => m.direction === "in");
   if (!lastInbound) return;
+  // Ya hay respuesta después del último entrante (otra corrida o el dueño desde
+  // el móvil): contestar otra vez duplicaría, y el modelo devolvería vacío.
+  if (history[history.length - 1]?.direction !== "in") return;
 
   // Ventana cerrada: el agente JAMÁS envía texto libre → handoff 'ventana'.
   if (!conversation.isTest && !isWindowOpen(conversation.lastInboundAt)) {
@@ -196,11 +199,13 @@ export async function runAgentTurn(conversationId: string): Promise<void> {
     },
     // Los turnos propios van en el MISMO formato JSON que se le exige: con el
     // historial en texto plano, el modelo acaba imitándolo y la salida se pierde.
+    // Un entrante sin texto (sticker, foto…) no se descarta: si se cae, el
+    // historial acaba en un turno propio y el modelo devuelve vacío → handoff.
     ...history
-      .filter((m) => m.text)
+      .filter((m) => m.text || m.direction === "in")
       .map((m) =>
         m.direction === "in"
-          ? { role: "user" as const, content: m.text! }
+          ? { role: "user" as const, content: m.text || `[el cliente envió: ${m.type}]` }
           : {
               role: "assistant" as const,
               content: JSON.stringify({ action: "reply", text: m.text }),
