@@ -7,7 +7,7 @@ import { notifyHandoff, ultimaNotaDeLaIa } from "@/server/notify/handoff-webhook
  * 1. El resumen de cualificación es MULTILÍNEA y `appendLeadNote` solo marca
  *    con `[IA] ` el principio de cada nota. Un corte ingenuo por `\n` dejaría
  *    el aviso con el primer renglón y tirando el resto.
- * 2. Los guardas: sin variable, en el Laboratorio o con un motivo técnico, no
+ * 2. Los guardas: sin variable, en el Laboratorio o con un motivo ajeno, no
  *    se toca la red. Se comprueba espiando `fetch`, que es lo único que se ve
  *    desde fuera.
  */
@@ -76,10 +76,9 @@ describe("notifyHandoff: guardas", () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it("los motivos técnicos no molestan al dueño", async () => {
+  it("un motivo que no es del agente no avisa", async () => {
     process.env.HANDOFF_WEBHOOK_URL = "https://n8n.example.com/webhook/handoff";
-    await notifyHandoff(conversacion(), "ventana");
-    await notifyHandoff(conversacion(), "error");
+    await notifyHandoff(conversacion(), "manual_reply");
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 });

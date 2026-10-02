@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mediaInputFrom } from "@/server/inbox/ingest";
+import { esComandoBot, mediaInputFrom } from "@/server/inbox/ingest";
 import type { WebhookMessage } from "@/server/inbox/webhook";
 
 /**
@@ -80,5 +80,18 @@ describe("mediaInputFrom (008)", () => {
   it("texto plano → null", () => {
     const msg: WebhookMessage = { ...base, type: "text", text: { body: "hola" } };
     expect(mediaInputFrom(msg)).toBeNull();
+  });
+});
+
+describe("#bot desde el móvil", () => {
+  it("reconoce el comando con espacios y mayúsculas", () => {
+    expect(esComandoBot("#bot")).toBe(true);
+    expect(esComandoBot("  #BOT \n")).toBe(true);
+  });
+
+  it("no confunde un mensaje normal que lo menciona", () => {
+    expect(esComandoBot("te paso con el #bot")).toBe(false);
+    expect(esComandoBot("bot")).toBe(false);
+    expect(esComandoBot(null)).toBe(false);
   });
 });

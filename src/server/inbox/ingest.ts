@@ -349,26 +349,16 @@ async function ingestManualEcho(
     .set({ lastMessageAt: waTimestamp, updatedAt: new Date() })
     .where(eq(schema.conversation.id, conversation.id));
 
-  // Pausa automática de la IA, idempotente y atómica (solo si no hay handoff).
-  const paused = await db
-    .update(schema.conversation)
-    .set({
-      aiEnabled: false,
-      handoffAt: new Date(),
-      handoffReason: "manual_reply",
-      updatedAt: new Date(),
-    })
-    .where(
-      and(
-        eq(schema.conversation.id, conversation.id),
-        sql`${schema.conversation.handoffAt} is null`
-      )
-    )
-    .returning();
-  if (paused[0]) {
-    console.log(
-      `[webhook] respuesta manual del dueño en ${conversation.id} — IA pausada (manual_reply)`
-    );
+  // `#bot` desde el móvil devuelve la conversación al agente (igual que
+  // «Reactivar IA» en la bandeja), en vez de pausarla.
+  if (esComandoBot(echo.text?.body)) {
+    await db
+      .update(schema.conversation)
+      .set({ aiEnabled: true, handoffAt: null, handoffReason: null, updatedAt: new Date() })
+      .where(eq(schema.conversation.id, conversation.id));
+    console.log(`[webhook] #bot del dueño en ${conversation.id} — IA reactivada`);
+  } else {
+    await pausarPorRespuestaManual(conversation.id);
   }
 
   publish(organizationId, {
@@ -382,6 +372,36 @@ async function ingestManualEcho(
     type: "conversation.updated",
     data: { conversation: { id: conversation.id } },
   });
+}
+
+/** El comando para devolver la conversación al agente, el mismo en todos los bots. */
+export function esComandoBot(text: string | null | undefined): boolean {
+  return (text ?? "").trim().toLowerCase() === "#bot";
+}
+
+async function pausarPorRespuestaManual(conversationId: string): Promise<void> {
+  const db = getDb();
+  // Pausa automática de la IA, idempotente y atómica (solo si no hay handoff).
+  const paused = await db
+    .update(schema.conversation)
+    .set({
+      aiEnabled: false,
+      handoffAt: new Date(),
+      handoffReason: "manual_reply",
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(schema.conversation.id, conversationId),
+        sql`${schema.conversation.handoffAt} is null`
+      )
+    )
+    .returning();
+  if (paused[0]) {
+    console.log(
+      `[webhook] respuesta manual del dueño en ${conversationId} — IA pausada (manual_reply)`
+    );
+  }
 }
 
 export async function ingestInboundMessage(input: {

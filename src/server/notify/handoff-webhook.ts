@@ -19,19 +19,18 @@ import { getDb, schema } from "@/lib/db";
  */
 
 /**
- * Solo los motivos que necesitan a una PERSONA.
- *
- * `error` (se cayó el proveedor de IA) y `ventana` (pasaron 24h y ya no se
- * puede mandar texto libre) son técnicos: quien recibe el aviso no sabría qué
- * hacer con ellos, y el ruido enseña a ignorar los avisos que sí importan.
- * Viajan igual en el payload por si el otro lado quiere enrutarlos a otro
- * sitio, pero no se envían desde aquí.
+ * Todos los motivos del agente avisan: los técnicos también dejan la
+ * conversación en pausa, y sin aviso el lead se queda colgado sin que nadie lo
+ * sepa. `manual_reply` no pasa por aquí (lo provoca el propio dueño).
  */
-const MOTIVOS_QUE_AVISAN = new Set(["modelo", "cliente"]);
+const MOTIVOS_QUE_AVISAN = new Set(["modelo", "cliente", "error", "ventana"]);
 
 const ETIQUETAS: Record<string, string> = {
   modelo: "El agente decidió escalar",
   cliente: "El cliente pidió hablar con una persona",
+  error: "El asistente falló y dejó la conversación en pausa: contesta tú",
+  ventana:
+    "Pasaron más de 24 h desde el último mensaje del cliente: el asistente ya no puede escribirle, contesta tú",
 };
 
 /** Corto a propósito: el aviso no puede quedarse colgado del turno. */
