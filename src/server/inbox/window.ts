@@ -24,3 +24,15 @@ export function windowRemainingMs(
   const remaining = WINDOW_MS - (now.getTime() - lastInboundAt.getTime());
   return Math.max(0, remaining);
 }
+
+/**
+ * Frescura: el agente solo contesta lo que llegó hace menos de 2 minutos.
+ * Tras una caída, Meta reentrega lo acumulado; contestar mensajes de hace
+ * horas ya no tiene sentido. El mensaje se guarda igual: el dueño lo ve en
+ * la bandeja, solo que el agente no responde.
+ */
+export const FRESH_MS = 2 * 60 * 1000;
+
+export function isFresh(waTimestamp: Date, now: Date = new Date()): boolean {
+  return now.getTime() - waTimestamp.getTime() <= FRESH_MS;
+}

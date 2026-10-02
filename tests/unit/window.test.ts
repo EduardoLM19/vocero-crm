@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isWindowOpen, WINDOW_MS, windowRemainingMs } from "@/server/inbox/window";
+import { FRESH_MS, isFresh, isWindowOpen, WINDOW_MS, windowRemainingMs } from "@/server/inbox/window";
 
 describe("ventana de 24 horas (FR-005)", () => {
   const now = new Date("2026-07-09T12:00:00Z");
@@ -35,5 +35,25 @@ describe("ventana de 24 horas (FR-005)", () => {
     expect(remaining).toBe(60 * 60 * 1000);
     const old = new Date(now.getTime() - 48 * 60 * 60 * 1000);
     expect(windowRemainingMs(old, now)).toBe(0);
+  });
+});
+
+describe("frescura de 2 minutos", () => {
+  const now = new Date("2026-07-09T12:00:00Z");
+
+  it("hace 30 s → fresco", () => {
+    expect(isFresh(new Date(now.getTime() - 30_000), now)).toBe(true);
+  });
+
+  it("borde exacto de 2 min → fresco", () => {
+    expect(isFresh(new Date(now.getTime() - FRESH_MS), now)).toBe(true);
+  });
+
+  it("hace 3 min → viejo", () => {
+    expect(isFresh(new Date(now.getTime() - 3 * 60_000), now)).toBe(false);
+  });
+
+  it("reloj del remitente adelantado (futuro) → fresco", () => {
+    expect(isFresh(new Date(now.getTime() + 10_000), now)).toBe(true);
   });
 });

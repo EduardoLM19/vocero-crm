@@ -23,6 +23,7 @@ import { atribucionEnabled } from "@/server/attribution/flag";
 import { recordAttribution } from "@/server/attribution/store";
 import { onLeadActivity } from "@/server/inbox/lead-activity";
 import { maybeRunAgentTurn } from "@/server/ai/trigger";
+import { isFresh } from "@/server/inbox/window";
 
 /** Tipos de contenido soportados; el resto se ignora sin error. */
 const SUPPORTED_TYPES = new Set([
@@ -471,6 +472,15 @@ export async function ingestInboundMessage(input: {
     type: "conversation.updated",
     data: { conversation: { id: conversation.id } },
   });
+
+  // Lo viejo (reentregas tras una caída) se guarda pero no se contesta.
+  if (!isFresh(waTimestamp)) {
+    const edad = Math.round((Date.now() - waTimestamp.getTime()) / 1000);
+    console.log(
+      `[agente] ${ultimos4(input.identity.identity)} mensaje de hace ${edad}s: guardado, no se contesta`
+    );
+    return;
+  }
 
   await maybeRunAgentTurn(conversation.id);
 }
