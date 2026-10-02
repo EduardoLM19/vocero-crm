@@ -22,6 +22,11 @@ const baseActions = [
     action: z.literal("handoff"),
     reason: z.string().optional(),
     farewell: z.string().optional(),
+    // Cerrar en un solo turno: guardar el resumen y mover de etapa antes de
+    // escalar. Con una acción por turno, pedir las tres por separado dejaba
+    // al agente despidiéndose sin llegar a escalar nunca.
+    note: z.string().optional(),
+    stage: z.string().optional(),
   }),
 ] as const;
 

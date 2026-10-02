@@ -63,7 +63,7 @@ export function buildAgentSystemPrompt(input: {
       '- {"action":"reply","text":"..."} — responder al cliente.',
       '- {"action":"update_lead","note":"...","reply":"..."} — guardar una nota del lead (reply opcional).',
       '- {"action":"move_stage","stage":"<nombre exacto de etapa>","reply":"..."} — mover el lead (reply opcional).',
-      '- {"action":"handoff","reason":"...","farewell":"..."} — escalar a un humano (farewell opcional para despedirte).',
+      '- {"action":"handoff","reason":"...","farewell":"...","note":"...","stage":"<nombre exacto de etapa>"} — escalar a un humano (farewell opcional para despedirte; note y stage opcionales: guardan una nota y mueven el lead en el mismo turno, antes de escalar).',
       ...agendaLines,
       "Reglas duras:",
       "- Si el cliente pide hablar con una persona/humano/asesor → handoff.",

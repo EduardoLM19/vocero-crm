@@ -297,6 +297,14 @@ export async function runAgentTurn(conversationId: string): Promise<void> {
       return;
     }
     case "handoff": {
+      // Nota y etapa ANTES del handoff: el aviso lee la última nota de la IA.
+      if (action.note) {
+        await appendLeadNote(organizationId, conversation.contactId, action.note);
+      }
+      const stage = action.stage ? resolveStage(action.stage, stages) : null;
+      if (stage) {
+        await moveLeadToStage(organizationId, conversation.contactId, stage.id);
+      }
       if (action.farewell) {
         await deliverReply(conversation, action.farewell);
       }
