@@ -1034,3 +1034,44 @@ export const capiSettings = pgTable(
   },
   (t) => [uniqueIndex("capi_settings_org_uq").on(t.organizationId)]
 );
+
+/**
+ * Caja negra del webhook de WhatsApp: una fila por cada mensaje entrante que
+ * llega de Meta, ANTES de la puerta y del filtro de tipos. Solo metadatos —
+ * nunca el texto — porque en coexistencia por aquí pasa también la familia del
+ * dueño. Responde "¿llegó el mensaje de este lead y qué hicimos con él?", que
+ * sin ella se contesta adivinando. Se borra sola a los 7 días.
+ */
+export const webhookLog = pgTable(
+  "webhook_log",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    receivedAt: timestamp("received_at").notNull().defaultNow(),
+    phoneNumberId: text("phone_number_id"),
+    waMessageId: text("wa_message_id"),
+    /** Teléfono (from) o BSUID (from_user_id); null si Meta no mandó ninguno. */
+    sender: text("sender"),
+    senderKind: text("sender_kind", { enum: ["phone", "bsuid", "none"] }).notNull(),
+    type: text("type").notNull(),
+    waTimestamp: timestamp("wa_timestamp"),
+    hasReferral: boolean("has_referral").notNull(),
+    referralSourceId: text("referral_source_id"),
+    referralSourceType: text("referral_source_type"),
+    referralHeadline: text("referral_headline"),
+    decision: text("decision", {
+      enum: [
+        "entra",
+        "puerta",
+        "tipo_no_soportado",
+        "sin_identidad",
+      ],
+    }).notNull(),
+  },
+  (t) => [
+    index("webhook_log_received_idx").on(t.receivedAt),
+    index("webhook_log_sender_idx").on(t.sender),
+  ]
+);

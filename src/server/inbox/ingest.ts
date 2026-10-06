@@ -19,6 +19,7 @@ import {
 } from "@/server/inbox/identity";
 import { applyStatusUpdate } from "@/server/inbox/status";
 import { dejaPasarEco, dejaPasarEntrante, ultimos4 } from "@/server/inbox/puerta";
+import { registrarEnCajaNegra } from "@/server/inbox/caja-negra";
 import { atribucionEnabled } from "@/server/attribution/flag";
 import { recordAttribution } from "@/server/attribution/store";
 import { onLeadActivity } from "@/server/inbox/lead-activity";
@@ -236,9 +237,16 @@ export async function processMessagesValue(value: WebhookValue): Promise<void> {
   }
 
   for (const msg of value.messages ?? []) {
-    if (!SUPPORTED_TYPES.has(msg.type)) continue; // reacciones, etc.: ignorar
+    const caja = { organizationId, phoneNumberId, msg };
+    if (!SUPPORTED_TYPES.has(msg.type)) {
+      // reacciones, etc.: ignorar — pero que quede rastro de qué tipo era
+      console.log(`[webhook] mensaje ${msg.id} de tipo "${msg.type}" no soportado: ignorado`);
+      await registrarEnCajaNegra({ ...caja, decision: "tipo_no_soportado" });
+      continue;
+    }
     const resolved = resolveIdentity(msg, value.contacts);
     if (!resolved) {
+      await registrarEnCajaNegra({ ...caja, decision: "sin_identidad" });
       // Mensaje sin NINGUNA identidad utilizable (ni teléfono ni BSUID):
       // registrar y descartar — jamás reventar el webhook (003).
       console.warn(
@@ -252,8 +260,10 @@ export async function processMessagesValue(value: WebhookValue): Promise<void> {
       console.log(
         `[puerta] ${ultimos4(resolved.identity)} sin señal de anuncio y desconocido: descartado`
       );
+      await registrarEnCajaNegra({ ...caja, decision: "puerta" });
       continue;
     }
+    await registrarEnCajaNegra({ ...caja, decision: "entra" });
     await ingestInboundMessage({
       organizationId,
       identity: resolved,

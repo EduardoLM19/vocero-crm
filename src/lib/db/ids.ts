@@ -29,6 +29,8 @@ const prefixes = {
   adAttribution: "att",
   conversionEvent: "cve",
   capiSettings: "capi",
+  // caja negra del webhook
+  webhookLog: "whl",
 } as const;
 
 export type IdKind = keyof typeof prefixes;
