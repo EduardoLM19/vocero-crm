@@ -10,6 +10,7 @@ export const dynamic = "force-dynamic";
 const bodySchema = z.object({
   conversationId: z.string().min(1),
   text: z.string().min(1).max(4096),
+  permitirEnPausa: z.boolean().optional(),
 });
 
 /**
@@ -46,14 +47,18 @@ export async function POST(req: Request) {
     .where(
       and(
         eq(schema.conversation.organizationId, organizationId),
-        eq(schema.conversation.id, body.data.conversationId)
-      )
+        eq(schema.conversation.id, body.data.conversationId),
+      ),
     )
     .limit(1);
   const conv = convs[0];
   if (!conv) return apiError(404, "not_found", "Conversación no encontrada");
-  if (!conv.aiEnabled || conv.handoffAt) {
-    return apiError(409, "ai_paused", "La IA está en pausa en esta conversación");
+  if ((!conv.aiEnabled || conv.handoffAt) && !body.data.permitirEnPausa) {
+    return apiError(
+      409,
+      "ai_paused",
+      "La IA está en pausa en esta conversación",
+    );
   }
 
   try {
