@@ -1,8 +1,7 @@
-import { and, eq } from "drizzle-orm";
 import { z } from "zod";
-import { getDb, schema } from "@/lib/db";
 import { apiError, parseBody } from "@/lib/api";
 import { requireBotKey, resolveInstanceOrg } from "@/server/bot/auth";
+import { comprobarPausa } from "@/server/bot/pausa";
 import { SendError, sendText } from "@/server/inbox/send";
 
 export const dynamic = "force-dynamic";
@@ -34,32 +33,13 @@ export async function POST(req: Request) {
   const body = await parseBody(req, bodySchema);
   if (!body.ok) return body.response;
 
-  // Gate de handoff: el bot JAMÁS habla sobre una conversación pausada. Se
-  // relee aquí porque entre que el bot pidió el contexto y armó su respuesta
-  // (segundos de un LLM) el dueño pudo haber tomado la conversación.
-  const db = getDb();
-  const convs = await db
-    .select({
-      aiEnabled: schema.conversation.aiEnabled,
-      handoffAt: schema.conversation.handoffAt,
-    })
-    .from(schema.conversation)
-    .where(
-      and(
-        eq(schema.conversation.organizationId, organizationId),
-        eq(schema.conversation.id, body.data.conversationId),
-      ),
-    )
-    .limit(1);
-  const conv = convs[0];
-  if (!conv) return apiError(404, "not_found", "Conversación no encontrada");
-  if ((!conv.aiEnabled || conv.handoffAt) && !body.data.permitirEnPausa) {
-    return apiError(
-      409,
-      "ai_paused",
-      "La IA está en pausa en esta conversación",
-    );
-  }
+  // Gate de handoff (compartido con /api/bot/messages/media).
+  const pausa = await comprobarPausa(
+    organizationId,
+    body.data.conversationId,
+    body.data.permitirEnPausa
+  );
+  if (pausa) return pausa;
 
   try {
     const result = await sendText({

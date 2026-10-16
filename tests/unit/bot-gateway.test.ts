@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { requireBotKey } from "@/server/bot/auth";
 import { mergeFicha, normalizeFicha } from "@/server/bot/ficha";
 import { toHandoffReason } from "@/server/bot/handoff";
+import { botPuedeHablar } from "@/server/bot/pausa";
 import { resetRateLimit } from "@/lib/rate-limit";
 
 /** La puerta de toda la superficie `/api/bot/*`. */
@@ -135,5 +136,21 @@ describe("mergeFicha", () => {
 
   it("sin ficha previa parte de cero", () => {
     expect(mergeFicha(null, { a: 1 })).toEqual({ a: 1 });
+  });
+});
+
+describe("botPuedeHablar (gate de handoff de texto y adjuntos)", () => {
+  const activa = { aiEnabled: true, handoffAt: null };
+  it("IA activa y sin handoff → habla", () => {
+    expect(botPuedeHablar(activa)).toBe(true);
+  });
+  it("IA apagada → calla", () => {
+    expect(botPuedeHablar({ ...activa, aiEnabled: false })).toBe(false);
+  });
+  it("con handoff → calla", () => {
+    expect(botPuedeHablar({ ...activa, handoffAt: new Date() })).toBe(false);
+  });
+  it("permitirEnPausa abre el envío aunque haya handoff", () => {
+    expect(botPuedeHablar({ aiEnabled: false, handoffAt: new Date() }, true)).toBe(true);
   });
 });
