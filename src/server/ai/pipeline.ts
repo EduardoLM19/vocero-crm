@@ -1,4 +1,4 @@
-import { asc, desc, eq } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
@@ -100,6 +100,9 @@ async function executeTurn(conversationId: string): Promise<void> {
   }
 }
 
+/** Respuestas de la IA por conversación en 24 h antes de pasar a un humano. */
+const MAX_RESPUESTAS_IA_24H = 60;
+
 /**
  * Ejecuta UN turno del agente ahora (el Laboratorio lo llama directo, con
  * debounce 0 y sin pasar por el coalesce).
@@ -143,6 +146,29 @@ export async function runAgentTurn(conversationId: string): Promise<void> {
   // Ya hay respuesta después del último entrante (otra corrida o el dueño desde
   // el móvil): contestar otra vez duplicaría, y el modelo devolvería vacío.
   if (history[history.length - 1]?.direction !== "in") return;
+
+  // Tope por conversación: un bucle con otro bot o un abuso no gasta IA sin
+  // fin. Ningún cliente real llega a esto en un día → pasa a un humano.
+  if (!conversation.isTest) {
+    const desde = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const [fila] = await db
+      .select({ n: count() })
+      .from(schema.message)
+      .where(
+        and(
+          eq(schema.message.conversationId, conversationId),
+          eq(schema.message.aiGenerated, true),
+          gte(schema.message.createdAt, desde)
+        )
+      );
+    if ((fila?.n ?? 0) >= MAX_RESPUESTAS_IA_24H) {
+      console.warn(
+        `[agente] tope de ${MAX_RESPUESTAS_IA_24H} respuestas IA en 24 h (${conversationId}) → handoff`
+      );
+      await applyHandoff(conversationId, organizationId, "error");
+      return;
+    }
+  }
 
   // Ventana cerrada: el agente JAMÁS envía texto libre → handoff 'ventana'.
   if (!conversation.isTest && !isWindowOpen(conversation.lastInboundAt)) {
