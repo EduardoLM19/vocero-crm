@@ -20,6 +20,7 @@ import {
 import { applyStatusUpdate } from "@/server/inbox/status";
 import { dejaPasarEco, dejaPasarEntrante, ultimos4 } from "@/server/inbox/puerta";
 import { registrarEnCajaNegra } from "@/server/inbox/caja-negra";
+import { avisarMensajeIlegible } from "@/server/notify/ilegible-webhook";
 import { atribucionEnabled } from "@/server/attribution/flag";
 import { recordAttribution } from "@/server/attribution/store";
 import { onLeadActivity } from "@/server/inbox/lead-activity";
@@ -241,6 +242,7 @@ export async function processMessagesValue(value: WebhookValue): Promise<void> {
     if (!SUPPORTED_TYPES.has(msg.type)) {
       // reacciones, etc.: ignorar — pero que quede rastro de qué tipo era
       console.log(`[webhook] mensaje ${msg.id} de tipo "${msg.type}" no soportado: ignorado`);
+      await avisarMensajeIlegible({ organizationId, msg, contacts: value.contacts });
       await registrarEnCajaNegra({ ...caja, decision: "tipo_no_soportado" });
       continue;
     }

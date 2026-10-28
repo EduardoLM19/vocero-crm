@@ -54,6 +54,11 @@ const envSchema = z.object({
   // Opcional: si esta, viaja como `Authorization: Bearer` en ese POST. Un
   // webhook abierto en internet es un buzon que puede llenar cualquiera.
   HANDOFF_WEBHOOK_TOKEN: z.string().optional(),
+  // Aviso de mensaje ilegible: a donde se POSTea cuando un numero desconocido
+  // manda algo que Meta entrega como "unsupported" (sin texto). Una vez por
+  // remitente cada 24 h. Usa HANDOFF_WEBHOOK_TOKEN si esta. Sin ella, nada.
+  // Ej.: AVISO_ILEGIBLE_URL=https://n8n.example.com/webhook/mensaje-ilegible
+  AVISO_ILEGIBLE_URL: z.string().url().optional(),
   // 015: bases de los conectores. Solo se sobreescriben para apuntar a los
   // mocks en el self-test; en producción se usan las reales.
   ZOOM_BASE_URL: z.string().url().default("https://api.zoom.us/v2"),
